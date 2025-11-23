@@ -86,6 +86,80 @@ def join_txt_chunks(txt_value: str) -> str:
         return ''.join(parts)
     return txt_value.strip('"')
 
+def create_resolver(timeout: int = 5, dns_server: Optional[str] = None) -> dns.resolver.Resolver:
+    """Create a DNS resolver with optional custom DNS server"""
+    resolver = dns.resolver.Resolver()
+    resolver.lifetime = timeout
+    if dns_server:
+        resolver.nameservers = [dns_server]
+    return resolver
+
+
+def update_tool():
+    """Update DNSint to the latest version from GitHub"""
+    console.print("\n[bold cyan]Checking for updates...[/bold cyan]\n")
+
+    try:
+        import subprocess
+
+        # Check if we're in a git repository
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        if result.returncode != 0:
+            console.print("[red]Error:[/red] Not a git repository. Please clone from GitHub:")
+            console.print("[cyan]git clone https://github.com/who0xac/DNSint.git[/cyan]\n")
+            sys.exit(1)
+
+        # Fetch latest changes
+        console.print("[yellow]Fetching latest changes...[/yellow]")
+        subprocess.run(["git", "fetch", "origin"], check=True, timeout=30)
+
+        # Check if there are updates
+        result = subprocess.run(
+            ["git", "rev-list", "HEAD...origin/main", "--count"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        commits_behind = int(result.stdout.strip())
+
+        if commits_behind == 0:
+            console.print("[green]✓ You're already on the latest version![/green]\n")
+            sys.exit(0)
+
+        console.print(f"[yellow]Found {commits_behind} new commit(s)[/yellow]\n")
+
+        # Show what will be updated
+        console.print("[cyan]Latest changes:[/cyan]")
+        subprocess.run(
+            ["git", "log", "HEAD..origin/main", "--oneline", "--no-decorate"],
+            timeout=5
+        )
+        console.print()
+
+        # Pull updates
+        console.print("[yellow]Updating DNSint...[/yellow]")
+        subprocess.run(["git", "pull", "origin", "main"], check=True, timeout=30)
+
+        console.print("\n[green]✓ DNSint updated successfully![/green]")
+        console.print("[dim]You may need to reinstall dependencies: pip install -r requirements.txt[/dim]\n")
+        sys.exit(0)
+
+    except subprocess.TimeoutExpired:
+        console.print("[red]Error:[/red] Update timed out. Please try again.\n")
+        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        console.print(f"[red]Error:[/red] Update failed: {e}\n")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}\n")
+        sys.exit(1)
 
 def get_parent_zone(domain: str) -> Optional[str]:
     """Get the parent zone for a domain (for DS record lookup)"""
@@ -712,7 +786,7 @@ def display_osint_results(osint: Dict[str, Any], quiet: bool):
         console.print()
 
 
-def get_dns_records(domain: str, timeout: int, verbose: bool) -> Dict[str, List[Any]]:
+def get_dns_records(domain: str, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, List[Any]]:
     """Query all major DNS record types"""
     with Progress(
         SpinnerColumn(),
@@ -721,9 +795,8 @@ def get_dns_records(domain: str, timeout: int, verbose: bool) -> Dict[str, List[
         transient=True
     ) as progress:
         task = progress.add_task("[cyan]Querying DNS records...", total=None)
-        
-        resolver = dns.resolver.Resolver()
-        resolver.lifetime = timeout
+
+        resolver = create_resolver(timeout, dns_server)
         records = {}
         
         for rtype in RECORD_TYPES:
@@ -762,7 +835,7 @@ def get_dns_records(domain: str, timeout: int, verbose: bool) -> Dict[str, List[
     return records
 
 
-def reverse_ptr_lookups(records: Dict, timeout: int, verbose: bool) -> Dict[str, List[str]]:
+def reverse_ptr_lookups(records: Dict, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, List[str]]:
     """Perform reverse PTR lookups for discovered IPs"""
     with Progress(
         SpinnerColumn(),
@@ -771,9 +844,8 @@ def reverse_ptr_lookups(records: Dict, timeout: int, verbose: bool) -> Dict[str,
         transient=True
     ) as progress:
         task = progress.add_task("[cyan]Performing reverse PTR lookups...", total=None)
-        
-        resolver = dns.resolver.Resolver()
-        resolver.lifetime = timeout
+
+        resolver = create_resolver(timeout, dns_server)
         ptr_results = {}
         
         ip_list = []
@@ -803,7 +875,7 @@ def reverse_ptr_lookups(records: Dict, timeout: int, verbose: bool) -> Dict[str,
     return ptr_results
 
 
-def attempt_axfr(domain: str, records: Dict, timeout: int, verbose: bool) -> Dict[str, Any]:
+def attempt_axfr(domain: str, records: Dict, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, Any]:
     """Attempt AXFR zone transfers on nameservers"""
     with Progress(
         SpinnerColumn(),
@@ -890,7 +962,7 @@ def count_spf_lookups(spf_record: str, domain: str, timeout: int, depth: int = 0
     return lookup_count, seen
 
 
-def email_security_analysis(domain: str, records: Dict, timeout: int, verbose: bool) -> Dict[str, Any]:
+def email_security_analysis(domain: str, records: Dict, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, Any]:
     """Analyze SPF, DMARC, and DKIM configurations"""
     with Progress(
         SpinnerColumn(),
@@ -934,8 +1006,7 @@ def email_security_analysis(domain: str, records: Dict, timeout: int, verbose: b
                 break
         
         try:
-            resolver = dns.resolver.Resolver()
-            resolver.lifetime = timeout
+            resolver = create_resolver(timeout, dns_server)
             dmarc_domain = f"_dmarc.{domain}"
             answers = resolver.resolve(dmarc_domain, "TXT", lifetime=timeout)
             for rdata in answers:
@@ -960,8 +1031,7 @@ def email_security_analysis(domain: str, records: Dict, timeout: int, verbose: b
         
         for selector in common_selectors:
             try:
-                resolver = dns.resolver.Resolver()
-                resolver.lifetime = timeout
+                resolver = create_resolver(timeout, dns_server)
                 dkim_domain = f"{selector}._domainkey.{domain}"
                 answers = resolver.resolve(dkim_domain, "TXT", lifetime=timeout)
                 for rdata in answers:
@@ -1084,7 +1154,7 @@ def whois_lookup(domain: str, verbose: bool) -> Dict[str, Any]:
     return whois_data
 
 
-def nameserver_analysis(domain: str, records: Dict, timeout: int, verbose: bool) -> Dict[str, Any]:
+def nameserver_analysis(domain: str, records: Dict, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, Any]:
     """Analyze nameserver infrastructure and DNSSEC"""
     with Progress(
         SpinnerColumn(),
@@ -1157,8 +1227,7 @@ def nameserver_analysis(domain: str, records: Dict, timeout: int, verbose: bool)
             parent_zone = get_parent_zone(domain)
             if parent_zone:
                 try:
-                    resolver = dns.resolver.Resolver()
-                    resolver.lifetime = timeout
+                    resolver = create_resolver(timeout, dns_server)
                     ds_answers = resolver.resolve(domain, "DS", lifetime=timeout)
                     if ds_answers:
                         ns_info["dnssec"]["has_ds"] = True
@@ -1171,7 +1240,7 @@ def nameserver_analysis(domain: str, records: Dict, timeout: int, verbose: bool)
     return ns_info
 
 
-def propagation_check(domain: str, timeout: int, verbose: bool) -> Dict[str, Any]:
+def propagation_check(domain: str, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, Any]:
     """Check DNS propagation across public resolvers"""
     with Progress(
         SpinnerColumn(),
@@ -1180,10 +1249,13 @@ def propagation_check(domain: str, timeout: int, verbose: bool) -> Dict[str, Any
         transient=True
     ) as progress:
         task = progress.add_task("[cyan]Checking DNS propagation...", total=None)
-        
+
         propagation = {}
-        
-        for name, resolver_ip in PUBLIC_RESOLVERS.items():
+
+        # Use custom DNS server if specified, otherwise use public resolvers
+        resolvers_to_check = {"Custom": dns_server} if dns_server else PUBLIC_RESOLVERS
+
+        for name, resolver_ip in resolvers_to_check.items():
             resolver = dns.resolver.Resolver()
             resolver.nameservers = [resolver_ip]
             resolver.lifetime = timeout
@@ -1261,7 +1333,7 @@ def security_audit(domain: str, records: Dict, axfr_results: Dict, email_sec: Di
     return security
 
 
-def osint_enrichment(domain: str, timeout: int, verbose: bool) -> Dict[str, Any]:
+def osint_enrichment(domain: str, timeout: int, verbose: bool, dns_server: Optional[str] = None) -> Dict[str, Any]:
     """Perform OSINT enrichment with robust error handling"""
     with Progress(
         SpinnerColumn(),
@@ -1586,7 +1658,7 @@ Examples:
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    parser.add_argument("domain", help="Target domain (e.g., example.com)")
+    parser.add_argument("domain", nargs='?', help="Target domain (e.g., example.com)")
     parser.add_argument("-a", "--all", action="store_true", help="Run full DNS + OSINT + Technology scan")
     parser.add_argument("-r", "--records", action="store_true", help="Query DNS record types")
     parser.add_argument("-z", "--zone", action="store_true", help="Perform reverse PTR & AXFR checks")
@@ -1599,13 +1671,23 @@ Examples:
     parser.add_argument("-t", "--tech", action="store_true", help="Detect web technologies, CMS, servers, and security headers")
     parser.add_argument("-e", "--export", action="store_true", help="Export JSON + TXT reports to Desktop")
     parser.add_argument("--timeout", type=int, default=5, help="Set DNS query timeout (default 5)")
+    parser.add_argument("--dns-server", type=str, help="Custom DNS server to use (e.g., 8.8.8.8)")
+    parser.add_argument("-u", "--update", action="store_true", help="Update DNSint to the latest version")
     parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed logs")
     parser.add_argument("-q", "--quiet", action="store_true", help="Minimal console output")
     
     args = parser.parse_args()
-    
+
+    # Handle update flag
+    if args.update:
+        update_tool()
+
+    # Validate domain is provided
+    if not args.domain:
+        parser.error("the following arguments are required: domain")
+
     domain = args.domain.strip().rstrip('.')
-    
+
     if not args.quiet:
         print_banner()
         console.print(f"[bold]Target:[/bold] [cyan]{domain}[/cyan]")
@@ -1630,61 +1712,61 @@ Examples:
     }
     
     if run_all or args.records:
-        all_data["records"] = get_dns_records(domain, args.timeout, args.verbose)
+        all_data["records"] = get_dns_records(domain, args.timeout, args.verbose, args.dns_server)
         display_dns_records_table(all_data["records"], args.quiet)
-    
+
     if run_all or args.zone:
         if not all_data["records"]:
-            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose)
-        all_data["ptr_lookups"] = reverse_ptr_lookups(all_data["records"], args.timeout, args.verbose)
+            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose, args.dns_server)
+        all_data["ptr_lookups"] = reverse_ptr_lookups(all_data["records"], args.timeout, args.verbose, args.dns_server)
         display_ptr_table(all_data["ptr_lookups"], args.quiet)
-        
-        all_data["axfr"] = attempt_axfr(domain, all_data["records"], args.timeout, args.verbose)
+
+        all_data["axfr"] = attempt_axfr(domain, all_data["records"], args.timeout, args.verbose, args.dns_server)
         display_axfr_results(all_data["axfr"], args.quiet)
-    
+
     if run_all or args.mail:
         if not all_data["records"]:
-            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose)
-        all_data["email_security"] = email_security_analysis(domain, all_data["records"], args.timeout, args.verbose)
+            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose, args.dns_server)
+        all_data["email_security"] = email_security_analysis(domain, all_data["records"], args.timeout, args.verbose, args.dns_server)
         display_email_security(all_data["email_security"], args.quiet)
-    
+
     if run_all or args.whois:
         all_data["whois"] = whois_lookup(domain, args.verbose)
         display_whois_info(all_data["whois"], args.quiet)
-    
+
     if run_all or args.nsinfo:
         if not all_data["records"]:
-            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose)
-        all_data["nameserver_info"] = nameserver_analysis(domain, all_data["records"], args.timeout, args.verbose)
+            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose, args.dns_server)
+        all_data["nameserver_info"] = nameserver_analysis(domain, all_data["records"], args.timeout, args.verbose, args.dns_server)
         display_nameserver_analysis(all_data["nameserver_info"], args.quiet)
-    
+
     if run_all or args.propagation:
-        all_data["propagation"] = propagation_check(domain, args.timeout, args.verbose)
+        all_data["propagation"] = propagation_check(domain, args.timeout, args.verbose, args.dns_server)
         display_propagation(all_data["propagation"], args.quiet)
-    
+
     if run_all or args.tech:
         all_data["technology"] = detect_technologies(domain, args.timeout, args.verbose)
         display_technology_info(all_data["technology"], args.quiet)
-    
+
     if run_all or args.security:
         if not all_data["records"]:
-            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose)
+            all_data["records"] = get_dns_records(domain, args.timeout, args.verbose, args.dns_server)
         if not all_data["axfr"]:
-            all_data["axfr"] = attempt_axfr(domain, all_data["records"], args.timeout, args.verbose)
+            all_data["axfr"] = attempt_axfr(domain, all_data["records"], args.timeout, args.verbose, args.dns_server)
         if not all_data["email_security"]:
-            all_data["email_security"] = email_security_analysis(domain, all_data["records"], args.timeout, args.verbose)
+            all_data["email_security"] = email_security_analysis(domain, all_data["records"], args.timeout, args.verbose, args.dns_server)
         if not all_data["nameserver_info"]:
-            all_data["nameserver_info"] = nameserver_analysis(domain, all_data["records"], args.timeout, args.verbose)
+            all_data["nameserver_info"] = nameserver_analysis(domain, all_data["records"], args.timeout, args.verbose, args.dns_server)
         if not all_data["propagation"]:
-            all_data["propagation"] = propagation_check(domain, args.timeout, args.verbose)
-        
-        all_data["security"] = security_audit(domain, all_data["records"], all_data["axfr"], 
-                                              all_data["email_security"], all_data["nameserver_info"], 
+            all_data["propagation"] = propagation_check(domain, args.timeout, args.verbose, args.dns_server)
+
+        all_data["security"] = security_audit(domain, all_data["records"], all_data["axfr"],
+                                              all_data["email_security"], all_data["nameserver_info"],
                                               all_data["propagation"], args.verbose)
         display_security_audit(all_data["security"], args.quiet)
-    
+
     if run_all or args.osint:
-        all_data["osint"] = osint_enrichment(domain, args.timeout, args.verbose)
+        all_data["osint"] = osint_enrichment(domain, args.timeout, args.verbose, args.dns_server)
         display_osint_results(all_data["osint"], args.quiet)
     
     display_summary(all_data, args.quiet)
