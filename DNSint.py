@@ -505,10 +505,16 @@ def display_whois_info(whois_data: Dict[str, Any], quiet: bool):
     table.add_row("Registrar", whois_data.get("registrar") or "[dim]Unknown[/dim]")
     
     if whois_data.get("registrant_org"):
-        table.add_row("Registrant Organization", whois_data["registrant_org"])
-    
+        org = whois_data["registrant_org"]
+        if isinstance(org, list):
+            org = org[0] if org else "Unknown"
+        table.add_row("Registrant Organization", str(org))
+
     if whois_data.get("registrant_country"):
-        table.add_row("Registrant Country", whois_data["registrant_country"])
+        country = whois_data["registrant_country"]
+        if isinstance(country, list):
+            country = country[0] if country else "Unknown"
+        table.add_row("Registrant Country", str(country))
     
     table.add_row("Created", whois_data.get("creation_date") or "[dim]Unknown[/dim]")
     table.add_row("Updated", whois_data.get("updated_date") or "[dim]Unknown[/dim]")
