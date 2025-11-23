@@ -82,8 +82,7 @@ DNSint is a powerful, all-in-one DNS reconnaissance and OSINT tool designed for 
 ## 🚀 Installation
 
 ### Prerequisites
-- Python 3.8 or higher
-- Git (for auto-update feature)
+- Python 3 or higher
 
 ### Quick Install
 
