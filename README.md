@@ -98,16 +98,6 @@ pip install -r requirements.txt
 python DNSint.py example.com -a
 ```
 
-### Dependencies
-
-DNSint uses the following Python packages:
-- `dnspython` - DNS toolkit
-- `requests` - HTTP requests
-- `python-whois` - WHOIS lookups
-- `ipwhois` - IP/ASN intelligence
-- `rich` - Beautiful terminal output
-- `beautifulsoup4` - HTML parsing
-
 ---
 
 ## 📖 Usage
